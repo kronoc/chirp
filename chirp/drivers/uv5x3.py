@@ -36,12 +36,18 @@ from textwrap import dedent
 # BTECH UV-5X3 magic string
 MSTRING_UV5X3 = "\x50\x0D\x0C\x20\x16\x03\x28"
 
+# MTC UV-5R-3 magic string
+MSTRING_UV5R3 = "\x50\x0D\x0C\x20\x17\x09\x19"
+
 ##### ID strings #####################################################
 
 # BTECH UV-5X3
 UV5X3_fp1 = "UVVG302"  # BFB300 original
 UV5X3_fp2 = "UVVG301"  # UVV300 original
 UV5X3_fp3 = "UVVG306"  # UVV306 original
+
+# MTC UV-5R-3
+UV5R3_fp1 = "5R31709"
 
 DTMF_CHARS = " 1234567890*#ABCD"
 STEPS = [2.5, 5.0, 6.25, 10.0, 12.5, 20.0, 25.0, 50.0]
@@ -110,6 +116,7 @@ class UV5X3(baofeng_common.BaofengCommonHT):
     _ranges = [(0x0000, 0x0DF0),
                (0x0E00, 0x1800),
                (0x1EE0, 0x1EF0),
+               (0x1F60, 0x1F70),
                (0x1F80, 0x1F90),
                (0x1FA0, 0x1FB0),
                (0x1FE0, 0x2000)]
@@ -351,11 +358,14 @@ class UV5X3(baofeng_common.BaofengCommonHT):
       u8 sql9;
     };
     
-    #seekto 0x1F80;
+    #seekto 0x1F60;
     struct {
       struct squelch vhf;
       u8 unknown0[6];
       u8 unknown1[16];
+      struct squelch vhf2;
+      u8 unknown2[6];
+      u8 unknown3[16];
       struct squelch uhf;
     } squelch;
 
@@ -384,9 +394,7 @@ class UV5X3(baofeng_common.BaofengCommonHT):
     def get_prompts(cls):
         rp = chirp_common.RadioPrompts()
         rp.experimental = \
-            ('The BTech UV-5X3 driver is a beta version.\n'
-             '\n'
-             'Please save an unedited copy of your first successful\n'
+            ('Please save an unedited copy of your first successful\n'
              'download to a CHIRP Radio Images(*.img) file.'
              )
         rp.pre_download = _(dedent("""\
@@ -664,7 +672,7 @@ class UV5X3(baofeng_common.BaofengCommonHT):
                               0, 7, _filter(_msg.line2)))
         other.append(rs)
 
-        if str(_mem.firmware_msg.line1) == "UVVG302":
+        if str(_mem.firmware_msg.line1) == ("UVVG302" or "5R31709"):
             lower = 136
             upper = 174
         else:
@@ -683,6 +691,9 @@ class UV5X3(baofeng_common.BaofengCommonHT):
         if str(_mem.firmware_msg.line1) == "UVVG302":
             lower = 200
             upper = 230
+        elif str(_mem.firmware_msg.line1) == "5R31709":
+            lower = 200
+            upper = 260
         else:
             lower = 220
             upper = 225
@@ -1167,18 +1178,23 @@ class UV5X3(baofeng_common.BaofengCommonHT):
         dtmfd.append(rs)
 
         # Service settings
-        for band in ["vhf", "uhf"]:
+        for band in ["vhf", "vhf2", "uhf"]:
             for index in range(0, 10):
                 key = "squelch.%s.sql%i" % (band, index)
                 if band == "vhf":
                     _obj = self._memobj.squelch.vhf
+                    _name = "VHF"
+                elif band == "vhf2":
+                    _obj = self._memobj.squelch.vhf2
+                    _name = "220"
                 elif band == "uhf":
                     _obj = self._memobj.squelch.uhf
+                    _name = "UHF"
                 val = RadioSettingValueInteger(0, 123,
                           getattr(_obj, "sql%i" % (index)))
                 if index == 0:
                     val.set_mutable(False)
-                name = "%s Squelch %i" % (band.upper(), index)
+                name = "%s Squelch %i" % (_name, index)
                 rs = RadioSetting(key, name, val)
                 service.append(rs)
 
@@ -1200,3 +1216,17 @@ class UV5X3(baofeng_common.BaofengCommonHT):
             return True
         else:
             return False
+
+
+@directory.register
+class MTCUV5R3Radio(UV5X3):
+    VENDOR = "MTC"
+    MODEL = "UV-5R-3"
+
+    _fileid = [UV5R3_fp1, ]
+
+    _magic = [MSTRING_UV5R3, ]
+
+    VALID_BANDS = [(136000000, 174000000),
+                   (200000000, 260000000),
+                   (400000000, 521000000)]

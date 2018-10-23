@@ -514,7 +514,7 @@ def _ident_radio(radio):
             data = _do_ident(radio, magic)
             return data
         except errors.RadioError, e:
-            LOG.error(e)
+            LOG.error("uv5r._ident_radio: %s", e)
             error = e
             time.sleep(2)
 
@@ -728,6 +728,7 @@ class BaofengUV5R(chirp_common.CloneModeRadio,
     _ranges_aux = [
                    (0x1EC0, 0x2000),
                   ]
+    _valid_chars = UV5R_CHARSET
 
     @classmethod
     def get_prompts(cls):
@@ -764,7 +765,7 @@ class BaofengUV5R(chirp_common.CloneModeRadio,
         rf.has_tuning_step = False
         rf.can_odd_split = True
         rf.valid_name_length = 7
-        rf.valid_characters = UV5R_CHARSET
+        rf.valid_characters = self._valid_chars
         rf.valid_skips = ["", "S"]
         rf.valid_tmodes = ["", "Tone", "TSQL", "DTCS", "Cross"]
         rf.valid_cross_modes = ["Tone->Tone", "Tone->DTCS", "DTCS->Tone",
@@ -1753,9 +1754,15 @@ class RH5RAlias(chirp_common.Alias):
     MODEL = "RH5R"
 
 
+class ROUV5REXAlias(chirp_common.Alias):
+    VENDOR = "Radioddity"
+    MODEL = "UV-5R EX"
+
+
 @directory.register
 class BaofengUV5RGeneric(BaofengUV5R):
-    ALIASES = [UV5XAlias, RT5RAlias, RT5RVAlias, RT5Alias, RH5RAlias]
+    ALIASES = [UV5XAlias, RT5RAlias, RT5RVAlias, RT5Alias, RH5RAlias,
+               ROUV5REXAlias]
 
 
 @directory.register
@@ -1777,6 +1784,7 @@ class BaofengUV82Radio(BaofengUV5R):
     _idents = [UV5R_MODEL_UV82]
     _vhf_range = (130000000, 176000000)
     _uhf_range = (400000000, 521000000)
+    _valid_chars = chirp_common.CHARSET_ASCII
 
     def _is_orig(self):
         # Override this for UV82 to always return False
@@ -1835,11 +1843,16 @@ class IntekKT980Radio(BaofengUV5R):
         return False
 
 
+class ROGA5SAlias(chirp_common.Alias):
+    VENDOR = "Radioddity"
+    MODEL = "GA-5S"
+
+
 @directory.register
 class BaofengBFF8HPRadio(BaofengUV5R):
     VENDOR = "Baofeng"
     MODEL = "BF-F8HP"
-    ALIASES = [RT5_TPAlias]
+    ALIASES = [RT5_TPAlias, ROGA5SAlias]
     _basetype = BASETYPE_F8HP
     _idents = [UV5R_MODEL_291,
                UV5R_MODEL_A58
@@ -1873,4 +1886,21 @@ class BaofengUV82HPRadio(BaofengUV5R):
 
     def _is_orig(self):
         # Override this for UV82HP to always return False
+        return False
+
+
+@directory.register
+class RadioddityUV5RX3Radio(BaofengUV5R):
+    VENDOR = "Radioddity"
+    MODEL = "UV-5RX3"
+
+    def get_features(self):
+        rf = BaofengUV5R.get_features(self)
+        rf.valid_bands = [self._vhf_range,
+                          (200000000, 260000000),
+                          self._uhf_range]
+        return rf
+
+    @classmethod
+    def match_model(cls, filename, filedata):
         return False

@@ -13,8 +13,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import base64
+import json
+import logging
 import math
-from chirp import errors, memmap
+from chirp import errors, memmap, CHIRP_VERSION
+
+LOG = logging.getLogger(__name__)
 
 SEPCHAR = ","
 
@@ -321,7 +326,7 @@ class Memory:
                   "rToneFreq", "cToneFreq", "DtcsCode",
                   "DtcsPolarity", "Mode", "TStep",
                   "Skip", "Comment",
-                  "URCALL", "RPT1CALL", "RPT2CALL"]
+                  "URCALL", "RPT1CALL", "RPT2CALL", "DVCODE"]
 
     def __setattr__(self, name, val):
         if not hasattr(self, name):
@@ -675,6 +680,7 @@ def console_status(status):
 
 class RadioPrompts:
     """Radio prompt strings"""
+    info = None
     experimental = None
     pre_download = None
     pre_upload = None
@@ -1103,10 +1109,12 @@ class Radio(Alias):
 class FileBackedRadio(Radio):
     """A file-backed radio stores its data in a file"""
     FILE_EXTENSION = "img"
+    MAGIC = '\x00\xffchirp\xeeimg\x00\x01'
 
     def __init__(self, *args, **kwargs):
         Radio.__init__(self, *args, **kwargs)
         self._memobj = None
+        self._metadata = {}
 
     def save(self, filename):
         """Save the radio's memory map to @filename"""
@@ -1120,10 +1128,50 @@ class FileBackedRadio(Radio):
         """Process a newly-loaded or downloaded memory map"""
         pass
 
+    @classmethod
+    def _strip_metadata(cls, raw_data):
+        try:
+            idx = raw_data.index(cls.MAGIC)
+        except ValueError:
+            LOG.debug('Image data has no metadata blob')
+            return raw_data, {}
+
+        # Find the beginning of the base64 blob
+        raw_metadata = raw_data[idx + len(cls.MAGIC):]
+        metadata = {}
+        try:
+            metadata = json.loads(base64.b64decode(raw_metadata))
+        except ValueError as e:
+            LOG.error('Failed to parse decoded metadata blob: %s' % e)
+        except TypeError as e:
+            LOG.error('Failed to decode metadata blob: %s' % e)
+
+        if metadata:
+            LOG.debug('Loaded metadata: %s' % metadata)
+
+        return raw_data[:idx], metadata
+
+    @classmethod
+    def _make_metadata(cls):
+        return base64.b64encode(json.dumps(
+            {'rclass': cls.__name__,
+             'vendor': cls.VENDOR,
+             'model': cls.MODEL,
+             'variant': cls.VARIANT,
+             'chirp_version': CHIRP_VERSION,
+             }))
+
     def load_mmap(self, filename):
         """Load the radio's memory map from @filename"""
         mapfile = file(filename, "rb")
-        self._mmap = memmap.MemoryMap(mapfile.read())
+        data = mapfile.read()
+        if self.MAGIC in data:
+            data, self._metadata = self._strip_metadata(data)
+            if ('chirp_version' in self._metadata and
+                    is_version_newer(self._metadata.get('chirp_version'))):
+                LOG.warning('Image is from version %s but we are %s' % (
+                    self._metadata.get('chirp_version'), CHIRP_VERSION))
+        self._mmap = memmap.MemoryMap(data)
         mapfile.close()
         self.process_mmap()
 
@@ -1135,6 +1183,9 @@ class FileBackedRadio(Radio):
         try:
             mapfile = file(filename, "wb")
             mapfile.write(self._mmap.get_packed())
+            if filename.lower().endswith(".img"):
+                mapfile.write(self.MAGIC)
+                mapfile.write(self._make_metadata())
             mapfile.close()
         except IOError:
             raise Exception("File Access Error")
@@ -1142,6 +1193,14 @@ class FileBackedRadio(Radio):
     def get_mmap(self):
         """Return the radio's memory map object"""
         return self._mmap
+
+    @property
+    def metadata(self):
+        return dict(self._metadata)
+
+    @metadata.setter
+    def metadata(self, value):
+        self._metadata.update(values)
 
 
 class CloneModeRadio(FileBackedRadio):
@@ -1285,6 +1344,11 @@ def is_2_5(freq):
     return (freq % 2500) == 0
 
 
+def is_8_33(freq):
+    """Returns True if @freq is reachable by a 8.33kHz step"""
+    return (freq % 25000) in [0, 8330, 16660]
+
+
 def required_step(freq):
     """Returns the simplest tuning step that is required to reach @freq"""
     if is_5_0(freq):
@@ -1295,6 +1359,8 @@ def required_step(freq):
         return 6.25
     elif is_2_5(freq):
         return 2.5
+    elif is_8_33(freq):
+        return 8.33
     else:
         raise errors.InvalidDataError("Unable to calculate the required " +
                                       "tuning step for %i.%5i" %
@@ -1325,6 +1391,18 @@ def fix_rounded_step(freq):
     try:
         required_step(freq + 750)
         return float(freq + 750)
+    except errors.InvalidDataError:
+        pass
+
+    try:
+        required_step(freq + 330)
+        return float(freq + 330)
+    except errors.InvalidDataError:
+        pass
+
+    try:
+        required_step(freq + 660)
+        return float(freq + 660)
     except errors.InvalidDataError:
         pass
 
@@ -1483,3 +1561,33 @@ def sanitize_string(astring, validcharset=CHARSET_ASCII, replacechar='*'):
             for x in xrange(256)
         ])
     return astring.translate(myfilter)
+
+
+def is_version_newer(version):
+    """Return True if version is newer than ours"""
+
+    def get_version(v):
+        if v.startswith('daily-'):
+            _, stamp = v.split('-', 1)
+            ver = (int(stamp),)
+        elif '.' in v:
+            ver = tuple(int(p) for p in v.split('.'))
+        else:
+            ver = (0,)
+        LOG.debug('Parsed version %r to %r' % (v, ver))
+        return ver
+
+    from chirp import CHIRP_VERSION
+
+    try:
+        version = get_version(version)
+    except ValueError as e:
+        LOG.error('Failed to parse version %r: %s' % (version, e))
+        version = (0,)
+    try:
+        my_version = get_version(CHIRP_VERSION)
+    except ValueError as e:
+        LOG.error('Failed to parse my version %r: %s' % (CHIRP_VERSION, e))
+        my_version = (0,)
+
+    return version > my_version

@@ -179,7 +179,7 @@ class MemoryEditor(common.Editor):
         try:
             new = chirp_common.parse_freq(new)
         except ValueError, e:
-            LOG.error(e)
+            LOG.error("chirp_common.parse_freq error: %s", e)
             new = None
 
         if not self._features.has_nostep_tuning:
@@ -496,7 +496,7 @@ class MemoryEditor(common.Editor):
         to_remove = []
         for path in paths:
             iter = self.store.get_iter(path)
-            cur_pos, = self.store.get(iter, self.col("Loc"))
+            cur_pos, = self.store.get(iter, self.col(_("Loc")))
             to_remove.append(cur_pos)
             self.store.set(iter, self.col("_filled"), False)
             job = common.RadioJob(None, "erase_memory", cur_pos)
@@ -935,9 +935,13 @@ class MemoryEditor(common.Editor):
 
     def cell_editing_started(self, rend, event, path):
         self._in_editing = True
+        self._edit_path = self.view.get_cursor()
 
     def cell_editing_stopped(self, *args):
         self._in_editing = False
+        print 'Would activate %s' % str(self._edit_path)
+        self.view.grab_focus()
+        self.view.set_cursor(*self._edit_path)
 
     def make_editor(self):
         types = tuple([x[1] for x in self.cols])
@@ -957,18 +961,22 @@ class MemoryEditor(common.Editor):
 
         default_col_order = [x for x, y, z in self.cols if z]
         try:
-            col_order = self._config.get("column_order_%s" %
-                                         self.__class__.__name__).split(",")
-            if len(col_order) != len(default_col_order):
-                raise Exception()
-            for i in col_order:
-                if i not in default_col_order:
+            config_setting = self._config.get("column_order_%s" %
+                                              self.__class__.__name__)
+            if config_setting is None:
+                col_order = default_col_order
+            else:
+                col_order = config_setting.split(",")
+                if len(col_order) != len(default_col_order):
                     raise Exception()
+                for i in col_order:
+                    if i not in default_col_order:
+                        raise Exception()
         except Exception, e:
-            LOG.error(e)
+            LOG.error("column order setting: %s", e)
             col_order = default_col_order
 
-        non_editable = ["Loc"]
+        non_editable = [_("Loc")]
 
         unsupported_cols = self.get_unsupported_columns()
         visible_cols = self.get_columns_visible()

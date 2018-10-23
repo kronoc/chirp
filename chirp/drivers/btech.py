@@ -196,7 +196,7 @@ KT8900_fp3 = "M2G2F4"
 KT8900_fp4 = "M2G304"
 KT8900_fp5 = "M2G314"
 # this radio has an extra ID
-KT8900_id = "      303688"
+KT8900_id = "303688"
 
 # KT8900R
 KT8900R_fp = "M3G1F4"
@@ -213,9 +213,14 @@ KT8900R_id = "280528"
 
 # KT7900D (quad band)
 KT7900D_fp = "VC4004"
+KT7900D_fp1 = "VC4284"
+
+# QB25 (quad band) - a clone of KT7900D
+QB25_fp = "QB-25"
 
 # KT8900D (dual band)
 KT8900D_fp = "VC2002"
+KT8900D_fp1 = "VC8632"
 
 # LUITON LT-588UV
 LT588UV_fp = "V2G1F4"
@@ -635,7 +640,7 @@ def _split(rf, f1, f2):
             return False
 
     # if you get here is because the freq pairs are split
-    return False
+    return True
 
 
 class BTechMobileCommon(chirp_common.CloneModeRadio,
@@ -924,6 +929,12 @@ class BTechMobileCommon(chirp_common.CloneModeRadio,
             _names.set_raw("\xFF" * 16)
             return
 
+        if mem_was_empty:
+            # Zero the whole memory if we're making it unempty for
+            # the first time
+            LOG.debug('Zeroing new memory')
+            _mem.set_raw('\x00' * 16)
+
         # frequency
         _mem.rxfreq = mem.freq / 10
 
@@ -970,10 +981,25 @@ class BTechMobileCommon(chirp_common.CloneModeRadio,
         _mem.unknown5 = 0
         _mem.unknown6 = 0
 
+        def _zero_settings():
+            _mem.spmute = 0
+            _mem.optsig = 0
+            _mem.scramble = 0
+            _mem.bcl = 0
+            _mem.pttid = 0
+            _mem.scode = 0
+
+        if self.COLOR_LCD and _mem.scramble:
+            LOG.info('Resetting scramble bit for BTECH COLOR_LCD variant')
+            _mem.scramble = 0
+
         # extra settings
         if len(mem.extra) > 0:
             # there are setting, parse
             LOG.debug("Extra-Setting supplied. Setting them.")
+            # Zero them all first so any not provided by model don't
+            # stay set
+            _zero_settings()
             for setting in mem.extra:
                 setattr(_mem, setting.get_name(), setting.value)
         else:
@@ -983,14 +1009,9 @@ class BTechMobileCommon(chirp_common.CloneModeRadio,
                 LOG.debug("New mem is NOT empty")
                 # set extra-settings to default ONLY when apreviously empty or
                 # deleted memory was edited to prevent errors such as #4121
-                if mem_was_empty :
+                if mem_was_empty:
                     LOG.debug("old mem was empty. Setting default for extras.")
-                    _mem.spmute = 0
-                    _mem.optsig = 0
-                    _mem.scramble = 0
-                    _mem.bcl = 0
-                    _mem.pttid = 0
-                    _mem.scode = 0
+                    _zero_settings()
 
         return mem
 
@@ -3608,6 +3629,11 @@ class SKT8900D(chirp_common.Alias):
     MODEL = "S-KT8900D"
 
 
+class QB25(chirp_common.Alias):
+    VENDOR = "Radioddity"
+    MODEL = "QB25"
+
+
 # real radios
 @directory.register
 class UV25X2(BTechColor):
@@ -3657,9 +3683,9 @@ class KT7900D(BTechColor):
     _uhf_range = (400000000, 481000000)
     _350_range = (350000000, 371000000)
     _magic = MSTRING_KT8900D
-    _fileid = [KT7900D_fp, ]
+    _fileid = [KT7900D_fp, KT7900D_fp1, QB25_fp, ]
     # Clones
-    ALIASES = [SKT8900D, ]
+    ALIASES = [SKT8900D, QB25, ]
 
 
 @directory.register
@@ -3671,4 +3697,4 @@ class KT8900D(BTechColor):
     _vhf_range = (136000000, 175000000)
     _uhf_range = (400000000, 481000000)
     _magic = MSTRING_KT8900D
-    _fileid = [KT8900D_fp, ]
+    _fileid = [KT8900D_fp, KT8900D_fp1]

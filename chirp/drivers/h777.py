@@ -227,6 +227,16 @@ def do_upload(radio):
     _h777_exit_programming_mode(radio)
 
 
+class ArcshellAR5(chirp_common.Alias):
+    VENDOR = 'Arcshell'
+    MODEL = 'AR-5'
+
+
+class ArcshellAR6(chirp_common.Alias):
+    VENDOR = 'Arcshell'
+    MODEL = 'AR-6'
+
+
 @directory.register
 class H777Radio(chirp_common.CloneModeRadio):
     """HST H-777"""
@@ -235,6 +245,8 @@ class H777Radio(chirp_common.CloneModeRadio):
     VENDOR = "Baofeng"
     MODEL = "BF-888"
     BAUD_RATE = 9600
+
+    ALIASES = [ArcshellAR5, ArcshellAR6]
 
     # This code currently requires that ranges start at 0x0000
     # and are continious. In the original program 0x0388 and 0x03C8
@@ -252,6 +264,8 @@ class H777Radio(chirp_common.CloneModeRadio):
         (0x0380, 0x03E0),
     ]
     _memsize = 0x03E0
+    _has_fm = True
+    _has_sidekey = True
 
     def get_features(self):
         rf = chirp_common.RadioFeatures()
@@ -461,9 +475,10 @@ class H777Radio(chirp_common.CloneModeRadio):
 
         # TODO: This should probably be called “FM Broadcast Band Radio”
         # or something. I'm not sure if the model actually has one though.
-        rs = RadioSetting("fmradio", "FM function",
-                          RadioSettingValueBoolean(_settings.fmradio))
-        basic.append(rs)
+        if self._has_fm:
+            rs = RadioSetting("fmradio", "FM function",
+                              RadioSettingValueBoolean(_settings.fmradio))
+            basic.append(rs)
 
         rs = RadioSetting("settings2.beep", "Beep",
                           RadioSettingValueBoolean(
@@ -480,12 +495,13 @@ class H777Radio(chirp_common.CloneModeRadio):
                               0, 9, self._memobj.settings2.squelchlevel))
         basic.append(rs)
 
-        rs = RadioSetting("settings2.sidekeyfunction", "Side key function",
-                          RadioSettingValueList(
-                              SIDEKEYFUNCTION_LIST,
-                              SIDEKEYFUNCTION_LIST[
-                                  self._memobj.settings2.sidekeyfunction]))
-        basic.append(rs)
+        if self._has_sidekey:
+            rs = RadioSetting("settings2.sidekeyfunction", "Side key function",
+                              RadioSettingValueList(
+                                  SIDEKEYFUNCTION_LIST,
+                                  SIDEKEYFUNCTION_LIST[
+                                      self._memobj.settings2.sidekeyfunction]))
+            basic.append(rs)
 
         rs = RadioSetting("settings2.timeouttimer", "Timeout timer",
                           RadioSettingValueList(
@@ -572,3 +588,16 @@ class H777TestCase(unittest.TestCase):
     def test_encode_tone_none(self):
         self.driver._encode_tone(self.testdata.foo, '', 67.0, 'N')
         self.assertEqual(16665, int(self.testdata.foo))
+
+
+@directory.register
+class ROGA2SRadio(H777Radio):
+    VENDOR = "Radioddity"
+    MODEL = "GA-2S"
+    _has_fm = False
+    _has_sidekey = False
+
+    @classmethod
+    def match_model(cls, filedata, filename):
+        # This model is only ever matched via metadata
+        return False
