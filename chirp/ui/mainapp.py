@@ -992,7 +992,8 @@ of file.
         return True
     def do_repeaterbook_political_row(self, do_import):
         return self.do_repeaterbook_political(do_import)
-
+    def do_repeaterbook_political_na(self, do_import):
+        return self.do_repeaterbook_political(do_import)
     def do_repeaterbook_political(self, do_import):
         self.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.WATCH))
         if not self.do_repeaterbook_political_prompt():
@@ -1107,8 +1108,12 @@ of file.
 
         d.destroy()
         return False
-    
+   
+
     def do_repeaterbook_proximity_row(self, do_import):
+        return self.do_repeaterbook_proximity(do_import)
+    
+    def do_repeaterbook_proximity_na(self, do_import):
         return self.do_repeaterbook_proximity(do_import)
 
     def do_repeaterbook_proximity(self, do_import):
@@ -1659,11 +1664,11 @@ of file.
         elif action == "export":
             self.do_export()
         elif action in ["qrbookpolitical", "irbookpolitical"]:
-            self.do_repeaterbook_political(action[0] == "i")
+            self.do_repeaterbook_political_na(action[0] == "i")
         elif action in ["qrbookpoliticalrow", "irbookpoliticalrow"]:
             self.do_repeaterbook_political_row(action[0] == "i")
         elif action in ["qrbookproximity", "irbookproximity"]:
-            self.do_repeaterbook_proximity(action[0] == "i")
+            self.do_repeaterbook_proximity_na(action[0] == "i")
         elif action in ["qrbookproximityrow", "irbookproximityrow"]:
             self.do_repeaterbook_proximity_row(action[0] == "i")
         elif action in ["qpr", "ipr"]:
