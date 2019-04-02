@@ -991,7 +991,7 @@ of file.
 
         return True
     def do_repeaterbook_political_row(self, do_import):
-        return self.do_repeaterbook_political(self, do_import)
+        return self.do_repeaterbook_political(do_import)
 
     def do_repeaterbook_political(self, do_import):
         self.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.WATCH))
@@ -1109,7 +1109,7 @@ of file.
         return False
     
     def do_repeaterbook_proximity_row(self, do_import):
-        return self.do_repeaterbook_proximity(self, do_import)
+        return self.do_repeaterbook_proximity(do_import)
 
     def do_repeaterbook_proximity(self, do_import):
         self.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.WATCH))
@@ -1867,9 +1867,13 @@ of file.
             ('qrfinder', None, _("RFinder"), None, None, self.mh),
             ('qpr', None, _("przemienniki.net"), None, None, self.mh),
             ('qrbook', None, _("RepeaterBook"), None, None, self.mh),
-            ('qrbookpolitical', None, _("RepeaterBook political query"), None,
+            ('qrbookpolitical', None, _("RepeaterBook political query NA"), None,
              None, self.mh),
-            ('qrbookproximity', None, _("RepeaterBook proximity query"), None,
+            ('qrbookpoliticalrow', None, _("RepeaterBook political query World"), None,
+             None, self.mh),
+            ('qrbookproximity', None, _("RepeaterBook proximity query NA"), None,
+             None, self.mh),
+            ('qrbookproximityrow', None, _("RepeaterBook proximity query World"), None,
              None, self.mh),
             ('export_chirp', None, _("CHIRP Native File"),
              None, None, self.mh),
