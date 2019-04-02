@@ -991,15 +991,20 @@ of file.
 
         return True
     def do_repeaterbook_political_row(self, do_import):
-        return self.do_repeaterbook_political(do_import)
+        url = "https://www.repeaterbook.com/row_repeaters/downloads/chirp.php?func=default&state_id=%s&freq=%%&band=%s&loc=%%&status_id=%%&features=%%&coverage=%%&use=%%&county_id=%%"
+        return self.do_repeaterbook_political(do_import, url, False)
     def do_repeaterbook_political_na(self, do_import):
-        return self.do_repeaterbook_political(do_import)
-    def do_repeaterbook_political(self, do_import):
+        url = "http://www.repeaterbook.com/repeaters/downloads/chirp.php" + \
+            "?func=default&state_id=%s&band=%s&freq=%%&band6=%%&loc=%%" + \
+            "&county_id=%s&status_id=%%&features=%%&coverage=%%&use=%%"
+        return self.do_repeaterbook_political(do_import, url, True)
+    def do_repeaterbook_political(self, do_import, url, na):
         self.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.WATCH))
         if not self.do_repeaterbook_political_prompt():
             self.window.set_cursor(None)
             return
-
+        countrycode = CONF.get("country", "repeaterbook")
+        
         try:
             code = "%02i" % int(CONF.get("state", "repeaterbook"))
         except:
@@ -1007,7 +1012,6 @@ of file.
                 code = CONF.get("state", "repeaterbook")
             except:
                 code = '41'  # Oregon default
-
         try:
             county = CONF.get("county", "repeaterbook")
         except:
@@ -1018,12 +1022,13 @@ of file.
         except:
             band = 14  # 2m default
 
-        query = "http://www.repeaterbook.com/repeaters/downloads/chirp.php" + \
-            "?func=default&state_id=%s&band=%s&freq=%%&band6=%%&loc=%%" + \
-            "&county_id=%s&status_id=%%&features=%%&coverage=%%&use=%%"
-        query = query % (code,
+        query = url
+        if na:
+            query = query % (code,
                          band and band or "%%",
                          county and county or "%%")
+        else:
+             query = query % (countrycode, band)
         print query
 
         # Do this in case the import process is going to take a while
@@ -1111,18 +1116,22 @@ of file.
    
 
     def do_repeaterbook_proximity_row(self, do_import):
-        return self.do_repeaterbook_proximity(do_import)
-    
+        url = "https://www.repeaterbook.com/row_repeaters/downloads/chirp.php?func=proxX&type=&%s&band1=%s&distance=%s&Dunit=k&freq=&call=&use=&features=&status_id="        
+        return self.do_repeaterbook_proximity(do_import, url)    
     def do_repeaterbook_proximity_na(self, do_import):
-        return self.do_repeaterbook_proximity(do_import)
+        url = "https://www.repeaterbook.com/repeaters/downloads/CHIRP/" \
+                "app_direct.php?loc=%s&band=%s&dist=%s"
+        return self.do_repeaterbook_proximity(do_import, url)
 
-    def do_repeaterbook_proximity(self, do_import):
+    def do_repeaterbook_proximity(self, do_import, url):
         self.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.WATCH))
         if not self.do_repeaterbook_proximity_prompt():
             self.window.set_cursor(None)
             return
 
         loc = CONF.get("location", "repeaterbook")
+        lat = CONF.get("lat", "repeaterbook")
+        lon = CONF.get("lon", "repeaterbook")
 
         try:
             dist = int(CONF.get("distance", "repeaterbook"))
@@ -1135,8 +1144,7 @@ of file.
         except:
             band = '%'
 
-        query = "https://www.repeaterbook.com/repeaters/downloads/CHIRP/" \
-                "app_direct.php?loc=%s&band=%s&dist=%s" % (loc, band, dist)
+        query = url % (loc, band, dist)
         print query
 
         # Do this in case the import process is going to take a while
