@@ -990,6 +990,8 @@ of file.
         CONF.set("band", str(freq), "repeaterbook")
 
         return True
+    def do_repeaterbook_political_row(self, do_import):
+        return self.do_repeaterbook_political(self, do_import)
 
     def do_repeaterbook_political(self, do_import):
         self.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.WATCH))
@@ -1105,6 +1107,9 @@ of file.
 
         d.destroy()
         return False
+    
+    def do_repeaterbook_proximity_row(self, do_import):
+        return self.do_repeaterbook_proximity(self, do_import)
 
     def do_repeaterbook_proximity(self, do_import):
         self.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.WATCH))
@@ -1655,8 +1660,12 @@ of file.
             self.do_export()
         elif action in ["qrbookpolitical", "irbookpolitical"]:
             self.do_repeaterbook_political(action[0] == "i")
+        elif action in ["qrbookpoliticalrow", "irbookpoliticalrow"]:
+            self.do_repeaterbook_political_row(action[0] == "i")
         elif action in ["qrbookproximity", "irbookproximity"]:
             self.do_repeaterbook_proximity(action[0] == "i")
+        elif action in ["qrbookproximityrow", "irbookproximityrow"]:
+            self.do_repeaterbook_proximity_row(action[0] == "i")
         elif action in ["qpr", "ipr"]:
             self.do_przemienniki(action[0] == "i")
         elif action == "about":
@@ -1750,7 +1759,9 @@ of file.
         <menuitem action="iradioreference"/>
         <menu action="irbook" name="irbook">
             <menuitem action="irbookpolitical"/>
+            <menuitem action="irbookpoliticalrow"/>
             <menuitem action="irbookproximity"/>
+            <menuitem action="irbookproximityrow"/>
         </menu>
         <menuitem action="ipr"/>
         <menuitem action="irfinder"/>
@@ -1760,7 +1771,9 @@ of file.
         <menuitem action="qradioreference"/>
         <menu action="qrbook" name="qrbook">
             <menuitem action="qrbookpolitical"/>
+            <menuitem action="qrbookpoliticalrow"/>
             <menuitem action="qrbookproximity"/>
+            <menuitem action="qrbookproximityrow"/>
         </menu>
         <menuitem action="qpr"/>
         <menuitem action="qrfinder"/>
@@ -1838,9 +1851,13 @@ of file.
              None, None, self.mh),
             ('irfinder', None, _("RFinder"), None, None, self.mh),
             ('irbook', None, _("RepeaterBook"), None, None, self.mh),
-            ('irbookpolitical', None, _("RepeaterBook political query"), None,
+            ('irbookpolitical', None, _("RepeaterBook political query NA"), None,
              None, self.mh),
-            ('irbookproximity', None, _("RepeaterBook proximity query"), None,
+            ('irbookpoliticalrow', None, _("RepeaterBook political query World"), None,
+             None, self.mh),
+            ('irbookproximity', None, _("RepeaterBook proximity query NA"), None,
+             None, self.mh),
+            ('irbookproximityrow', None, _("RepeaterBook proximity query World"), None,
              None, self.mh),
             ('ipr', None, _("przemienniki.net"), None, None, self.mh),
             ('querysrc', None, _("Query data source"), None, None, self.mh),
